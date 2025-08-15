@@ -1,0 +1,14 @@
+# Core ML
+torch==2.3.0
+torchvision==0.18.0
+torchaudio==2.3.0
+
+# Supporting libraries
+numpy==1.26.4
+Pillow==10.3.0
+scikit-learn==1.4.2
+librosa==0.10.1
+tqdm==4.66.4
+matplotlib==3.8.4
+scipy==1.13.0
+pydub==0.25.1

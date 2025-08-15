@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Face & Voice Recognition</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    h1 {
+      margin-top: 20px;
+      color: #2c3e50;
+      font-size: 2.5rem;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    .media-container {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    
+    .prediction-container {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      grid-column: span 2;
+    }
+    
+    video, canvas, audio {
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 2px solid #ddd;
+      background: #000;
+      width: 100%;
+      max-width: 500px;
+    }
+    
+    button {
+      margin: 10px;
+      padding: 12px 25px;
+      font-size: 1.1rem;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: 600;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .btn {
+      background: linear-gradient(to right, #3498db, #1a5276);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn i {
+      margin-right: 8px;
+      font-size: 1.2rem;
+    }
+    
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+      background: linear-gradient(to right, #2980b9, #154360);
+    }
+    
+    .btn:disabled {
+      background: #bdc3c7;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .recording {
+      background: linear-gradient(to right, #e74c3c, #c0392b) !important;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 6px 12px rgba(231, 76, 60, 0.6); }
+      100% { transform: scale(1); box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4); }
+    }
+    
+    #result {
+      margin-top: 20px;
+      font-size: 1.8rem;
+      color: #2c3e50;
+      font-weight: bold;
+      padding: 25px;
+      background: linear-gradient(135deg, #eef2f7 0%, #d6e4f0 100%);
+      border-radius: 15px;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    
+    .status {
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .status.success {
+      background: #d5f5e3;
+      color: #27ae60;
+      border-left: 4px solid #27ae60;
+    }
+    
+    .status.error {
+      background: #fadbd8;
+      color: #e74c3c;
+      border-left: 4px solid #e74c3c;
+    }
+    
+    .controls {
+      margin: 25px 0;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .debug-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #2c3e50;
+      color: #ecf0f1;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      text-align: left;
+      max-height: 250px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+    }
+
+    .recording-timer {
+      margin: 15px 0;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #e74c3c;
+      text-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+    }
+
+    .confidence-info {
+      margin-top: 20px;
+      padding: 20px;
+      background: linear-gradient(135deg, #d6eaf8 0%, #aed6f1 100%);
+      border-radius: 12px;
+      font-size: 1.1rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    }
+    
+    .confidence-bar {
+      height: 20px;
+      background: #ecf0f1;
+      border-radius: 10px;
+      margin: 10px 0;
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    }
+    
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(to right, #2ecc71, #27ae60);
+      border-radius: 10px;
+      transition: width 0.5s ease;
+    }
+    
+    .model-badge {
+      display: inline-block;
+      padding: 5px 12px;
+      background: #3498db;
+      color: white;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+    
+    .prediction-card {
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      margin: 10px 0;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    
+    .prediction-card h3 {
+      margin: 0 0 10px 0;
+      color: #3498db;
+      font-size: 1.1rem;
+    }
+    
+    .prediction-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+      
+      .prediction-container {
+        grid-column: 1;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+  <h1><i class="fas fa-user-check"></i> Live Face & Voice Recognition</h1>
+  
+  <div class="container">
+    <div class="media-container">
+      <h2><i class="fas fa-video"></i> Camera Feed</h2>
+      <video id="webcam" autoplay playsinline muted width="480" height="360"></video>
+      <div class="controls">
+        <button class="btn" id="captureBtn"><i class="fas fa-camera"></i> Capture Face</button>
+        <button class="btn" id="testBtn"><i class="fas fa-tools"></i> Test Access</button>
+      </div>
+    </div>
+    
+    <div class="media-container">
+      <h2><i class="fas fa-microphone"></i> Voice Recording</h2>
+      <audio id="audioPreview" controls style="display: none;"></audio>
+      <div class="controls">
+        <button class="btn" id="recordBtn"><i class="fas fa-microphone"></i> Start Recording</button>
+        <button class="btn" id="stopBtn" disabled><i class="fas fa-stop"></i> Stop Recording</button>
+      </div>
+      <div id="recordingTimer" class="recording-timer" style="display: none;"></div>
+    </div>
+    
+    <div class="prediction-container">
+      <h2><i class="fas fa-brain"></i> Recognition Results</h2>
+      <div class="controls">
+        <button class="btn" id="combinedBtn"><i class="fas fa-user-friends"></i> Combined Prediction</button>
+      </div>
+      
+      <div id="result">
+        <div>Ready to scan...</div>
+        <div class="model-badge">Deep Learning Model</div>
+      </div>
+      
+      <div id="confidenceInfo" class="confidence-info" style="display: none;">
+        <div class="confidence-bar">
+          <div class="confidence-fill" id="confidenceFill"></div>
+        </div>
+        <div id="confidenceText">Confidence: 0%</div>
+      </div>
+      
+      <div class="prediction-grid" id="predictionGrid" style="display: none;"></div>
+      
+      <div id="status" class="status" style="display: none;"></div>
+    </div>
+  </div>
+  
+  <div class="debug-info" id="debug" style="display: none;">
+    <h3><i class="fas fa-bug"></i> Debug Console</h3>
+    <div id="debugContent"></div>
+  </div>
+
+  <script>
+    // DOM Elements
+    const webcam = document.getElementById("webcam");
+    const audioPreview = document.getElementById("audioPreview");
+    const captureBtn = document.getElementById("captureBtn");
+    const recordBtn = document.getElementById("recordBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const combinedBtn = document.getElementById("combinedBtn");
+    const testBtn = document.getElementById("testBtn");
+    const result = document.getElementById("result");
+    const status = document.getElementById("status");
+    const debug = document.getElementById("debug");
+    const debugContent = document.getElementById("debugContent");
+    const recordingTimer = document.getElementById("recordingTimer");
+    const confidenceInfo = document.getElementById("confidenceInfo");
+    const confidenceText = document.getElementById("confidenceText");
+    const confidenceFill = document.getElementById("confidenceFill");
+    const predictionGrid = document.getElementById("predictionGrid");
+    
+    // Global variables
+    let mediaRecorder;
+    let audioChunks = [];
+    let videoStream;
+    let audioStream;
+    let recordingStartTime;
+    let timerInterval;
+    let lastPrediction = null;
+    
+    // Generate timestamp-based filename
+    function generateTimestampFilename(extension = 'webm') {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      const milliseconds = String(now.getMilliseconds()).padStart(3, '0');
+      
+      return `voice_${year}-${month}-${day}_${hours}-${minutes}-${seconds}-${milliseconds}.${extension}`;
+    }
+    
+    function showDebug(message) {
+      const timestamp = new Date().toLocaleTimeString();
+      const debugEntry = document.createElement('div');
+      debugEntry.innerHTML = `<span class="timestamp">${timestamp}</span>: ${message}`;
+      debugContent.appendChild(debugEntry);
+      debug.style.display = 'block';
+      debug.scrollTop = debug.scrollHeight;
+      console.log(message);
+    }
+    
+    function showStatus(message, type) {
+      status.textContent = message;
+      status.className = `status ${type}`;
+      status.style.display = 'block';
+      setTimeout(() => {
+        status.style.display = 'none';
+      }, 4000);
+      showDebug(`Status: ${message}`);
+    }
+
+    function updateRecordingTimer() {
+      if (recordingStartTime) {
+        const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        recordingTimer.textContent = `Recording: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }
+    }
+
+    function startRecordingTimer() {
+      recordingStartTime = Date.now();
+      recordingTimer.style.display = 'block';
+      timerInterval = setInterval(updateRecordingTimer, 100);
+    }
+
+    function stopRecordingTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      recordingTimer.style.display = 'none';
+      recordingStartTime = null;
+    }
+
+    function updateConfidenceDisplay(confidence) {
+      const confidencePercent = Math.round(confidence * 100);
+      confidenceFill.style.width = `${confidencePercent}%`;
+      confidenceText.textContent = `Confidence: ${confidencePercent}%`;
+      
+      // Color based on confidence level
+      if (confidencePercent > 85) {
+        confidenceFill.style.background = 'linear-gradient(to right, #2ecc71, #27ae60)';
+      } else if (confidencePercent > 65) {
+        confidenceFill.style.background = 'linear-gradient(to right, #f1c40f, #f39c12)';
+      } else {
+        confidenceFill.style.background = 'linear-gradient(to right, #e74c3c, #c0392b)';
+      }
+      
+      confidenceInfo.style.display = 'block';
+    }
+    
+    function displayPrediction(prediction, source) {
+      const formattedSource = source.charAt(0).toUpperCase() + source.slice(1);
+      result.innerHTML = `
+        <div>${formattedSource} Prediction: <strong>${prediction.person}</strong></div>
+        <div class="model-badge">Deep Learning Model</div>
+      `;
+      
+      if (prediction.confidence !== undefined && prediction.confidence !== null) {
+        updateConfidenceDisplay(prediction.confidence);
+      } else {
+        confidenceInfo.style.display = 'none';
+      }
+      
+      // Store last prediction
+      lastPrediction = {
+        type: source,
+        data: prediction,
+        timestamp: new Date()
+      };
+    }
+    
+    function displayCombinedPrediction(prediction) {
+      result.innerHTML = `
+        <div>Combined Prediction: <strong>${prediction.person}</strong></div>
+        <div class="model-badge">Deep Learning Model</div>
+      `;
+      
+      if (prediction.confidence !== undefined && prediction.confidence !== null) {
+        updateConfidenceDisplay(prediction.confidence);
+      } else {
+        confidenceInfo.style.display = 'none';
+      }
+      
+      // Show individual predictions
+      predictionGrid.innerHTML = '';
+      
+      if (prediction.individual_predictions) {
+        const facePred = prediction.individual_predictions.face;
+        const voicePred = prediction.individual_predictions.voice;
+        
+        predictionGrid.innerHTML = `
+          <div class="prediction-card">
+            <h3><i class="fas fa-user"></i> Face Prediction</h3>
+            <div class="person">${facePred.person}</div>
+            <div class="confidence">${facePred.confidence ? Math.round(facePred.confidence * 100) + '%' : 'N/A'}</div>
+          </div>
+          <div class="prediction-card">
+            <h3><i class="fas fa-microphone"></i> Voice Prediction</h3>
+            <div class="person">${voicePred.person}</div>
+            <div class="confidence">${voicePred.confidence ? Math.round(voicePred.confidence * 100) + '%' : 'N/A'}</div>
+          </div>
+        `;
+        
+        predictionGrid.style.display = 'grid';
+      }
+      
+      // Store last prediction
+      lastPrediction = {
+        type: 'combined',
+        data: prediction,
+        timestamp: new Date()
+      };
+    }
+    
+    // Test media access
+    testBtn.addEventListener("click", async () => {
+      showDebug("Testing media access...");
+      
+      try {
+        // Test camera
+        const testStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+        
+        if (testStream) {
+          showDebug("✅ Camera access successful");
+          testStream.getTracks().forEach(track => track.stop());
+        }
+        
+        // Test microphone
+        const audioStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 22050
+          } 
+        });
+        
+        if (audioStream) {
+          showDebug("✅ Microphone access successful");
+          audioStream.getTracks().forEach(track => track.stop());
+        }
+        
+        showStatus('Media test completed successfully', 'success');
+        
+      } catch (error) {
+        showDebug(`❌ Media test failed: ${error.message}`);
+        showStatus('Media access test failed', 'error');
+      }
+    });
+    
+    // Initialize webcam and microphone
+    async function initMedia() {
+      try {
+        showDebug("Initializing media devices...");
+        
+        // Initialize video stream
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 },
+            facingMode: 'user'
+          },
+          audio: false
+        });
+        
+        webcam.srcObject = videoStream;
+        await new Promise((resolve) => {
+          webcam.onloadedmetadata = resolve;
+        });
+        
+        showDebug(`Video initialized: ${webcam.videoWidth}x${webcam.videoHeight}`);
+        showStatus('Camera ready', 'success');
+        
+      } catch (err) {
+        console.error("Media access error:", err);
+        showDebug(`Media initialization error: ${err.message}`);
+        
+        let errorMessage = 'Failed to access camera';
+        
+        if (err.name === 'NotAllowedError') {
+          errorMessage = 'Permission denied. Please allow camera access.';
+        } else if (err.name === 'NotFoundError') {
+          errorMessage = 'No camera found.';
+        } else if (err.name === 'NotReadableError') {
+          errorMessage = 'Camera is already in use.';
+        }
+        
+        showStatus(errorMessage, 'error');
+      }
+    }
+    
+    // Face capture and prediction
+    captureBtn.addEventListener("click", async () => {
+      if (!videoStream || webcam.videoWidth === 0 || webcam.videoHeight === 0) {
+        showStatus('Video not ready yet. Please wait...', 'error');
+        return;
+      }
+      
+      try {
+        showDebug("Capturing face image...");
+        captureBtn.disabled = true;
+        
+        const canvas = document.createElement("canvas");
+        canvas.width = webcam.videoWidth;
+        canvas.height = webcam.videoHeight;
+        const ctx = canvas.getContext("2d");
+        
+        // Draw image with face detection overlay
+        ctx.drawImage(webcam, 0, 0, canvas.width, canvas.height);
+        
+        // Convert to blob
+        const blob = await new Promise((resolve) => {
+          canvas.toBlob(resolve, "image/jpeg", 0.85);
+        });
+        
+        if (!blob) {
+          showStatus('Failed to capture image', 'error');
+          captureBtn.disabled = false;
+          return;
+        }
+        
+        const timestamp = generateTimestampFilename('jpg');
+        showDebug(`Image captured: ${blob.size} bytes, filename: ${timestamp}`);
+        
+        const formData = new FormData();
+        formData.append("file", blob, timestamp);
+        
+        showStatus('Processing face...', 'success');
+        
+        try {
+          const response = await fetch("http://127.0.0.1:8000/predict-face/", {
+            method: "POST",
+            body: formData
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`HTTP ${response.status}: ${errorData.detail || response.statusText}`);
+          }
+          
+          const data = await response.json();
+          displayPrediction(data, 'face');
+          showDebug(`Face prediction: ${data.person} (confidence: ${data.confidence})`);
+          
+        } catch (fetchError) {
+          console.error("Face prediction API error:", fetchError);
+          showDebug(`API call failed: ${fetchError.message}`);
+          result.textContent = `Face Prediction Error`;
+          showStatus('Face prediction service unavailable', 'error');
+        }
+        
+      } catch (error) {
+        console.error("Face prediction error:", error);
+        showDebug(`Face capture error: ${error.message}`);
+        showStatus('Face prediction failed', 'error');
+      } finally {
+        captureBtn.disabled = false;
+      }
+    });
+    
+    // Voice recording - START
+    recordBtn.addEventListener("click", async () => {
+      try {
+        showDebug("Starting voice recording...");
+        recordBtn.disabled = true;
+        
+        // Create dedicated audio stream
+        audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 22050
+          }
+        });
+        
+        showDebug("Created dedicated audio stream for recording");
+        
+        // Reset audio chunks
+        audioChunks = [];
+        
+        // Create MediaRecorder
+        try {
+          mediaRecorder = new MediaRecorder(audioStream, {
+            mimeType: 'audio/webm;codecs=opus'
+          });
+          showDebug("MediaRecorder created with audio/webm;codecs=opus");
+        } catch (e) {
+          mediaRecorder = new MediaRecorder(audioStream);
+          showDebug("MediaRecorder created with default settings");
+        }
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+            showDebug(`Audio chunk received: ${event.data.size} bytes`);
+          }
+        };
+        
+        mediaRecorder.onstop = async () => {
+          showDebug("Recording stopped, processing audio...");
+          stopRecordingTimer();
+          
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const filename = generateTimestampFilename('webm');
+          
+          showDebug(`Final audio blob: ${audioBlob.size} bytes, filename: ${filename}`);
+          
+          // Create preview URL
+          const audioURL = URL.createObjectURL(audioBlob);
+          audioPreview.src = audioURL;
+          audioPreview.style.display = 'block';
+          
+          // Clean up the audio stream
+          if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+          }
+          
+          // Send to backend for prediction
+          await processVoice(audioBlob, filename);
+        };
+        
+        mediaRecorder.onerror = (event) => {
+          showDebug(`MediaRecorder error: ${event.error || 'Unknown error'}`);
+          showStatus('Recording error occurred', 'error');
+          stopRecordingTimer();
+          if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+          }
+          recordBtn.disabled = false;
+          stopBtn.disabled = true;
+        };
+        
+        // Start recording
+        mediaRecorder.start(100);
+        showDebug("MediaRecorder started");
+        
+        // Update UI
+        recordBtn.classList.add('recording');
+        stopBtn.disabled = false;
+        startRecordingTimer();
+        
+        showStatus('Recording voice... Click Stop when done', 'success');
+        
+      } catch (error) {
+        console.error("Recording error:", error);
+        showDebug(`Recording start error: ${error.message}`);
+        showStatus(`Recording failed: ${error.message}`, 'error');
+        
+        // Reset button states
+        recordBtn.disabled = false;
+        recordBtn.classList.remove('recording');
+        stopBtn.disabled = true;
+        stopRecordingTimer();
+        
+        if (audioStream) {
+          audioStream.getTracks().forEach(track => track.stop());
+          audioStream = null;
+        }
+      }
+    });
+    
+    // Voice recording - STOP
+    stopBtn.addEventListener("click", () => {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        showDebug("Stop button pressed - stopping recording");
+        mediaRecorder.stop();
+        
+        recordBtn.classList.remove('recording');
+        stopBtn.disabled = true;
+        
+        showStatus('Processing voice...', 'success');
+      } else {
+        showDebug(`Stop button pressed but recorder state is: ${mediaRecorder ? mediaRecorder.state : 'null'}`);
+      }
+    });
+    
+    // Process voice prediction
+    async function processVoice(audioBlob, filename) {
+      try {
+        showDebug(`Sending voice data to backend: ${filename}`);
+        
+        const formData = new FormData();
+        formData.append("file", audioBlob, filename);
+        
+        const response = await fetch("http://127.0.0.1:8000/predict-voice/", {
+          method: "POST",
+          body: formData
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`HTTP ${response.status}: ${errorData.detail || response.statusText}`);
+        }
+        
+        const data = await response.json();
+        displayPrediction(data, 'voice');
+        showDebug(`Voice prediction: ${data.person} (confidence: ${data.confidence})`);
+        showStatus('Voice prediction completed', 'success');
+        recordBtn.disabled = false;
+        
+      } catch (error) {
+        console.error("Voice prediction error:", error);
+        showDebug(`Voice API call failed: ${error.message}`);
+        result.textContent = `Voice Prediction Error`;
+        showStatus('Voice prediction service unavailable', 'error');
+        recordBtn.disabled = false;
+      }
+    }
+    
+    // Combined prediction
+    combinedBtn.addEventListener("click", async () => {
+      if (!videoStream || webcam.videoWidth === 0 || webcam.videoHeight === 0) {
+        showStatus('Video not ready', 'error');
+        return;
+      }
+      
+      try {
+        combinedBtn.disabled = true;
+        showStatus('Starting combined prediction...', 'success');
+        showDebug("Starting combined prediction...");
+        
+        // Capture image
+        const canvas = document.createElement("canvas");
+        canvas.width = webcam.videoWidth;
+        canvas.height = webcam.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(webcam, 0, 0);
+        
+        const imageBlob = await new Promise((resolve) => {
+          canvas.toBlob(resolve, "image/jpeg", 0.85);
+        });
+        
+        if (!imageBlob) {
+          throw new Error('Failed to capture image');
+        }
+        
+        const imageFilename = generateTimestampFilename('jpg');
+        showDebug(`Image captured for combined prediction: ${imageBlob.size} bytes`);
+        
+        // Create audio stream
+        const tempAudioStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 22050
+          }
+        });
+        
+        const tempAudioChunks = [];
+        const tempRecorder = new MediaRecorder(tempAudioStream, {
+          mimeType: 'audio/webm;codecs=opus'
+        });
+        
+        tempRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            tempAudioChunks.push(event.data);
+          }
+        };
+        
+        const recordingPromise = new Promise((resolve) => {
+          tempRecorder.onstop = resolve;
+        });
+        
+        tempRecorder.start();
+        showStatus('Recording audio for combined prediction...', 'success');
+        showDebug("Recording 3 seconds of audio...");
+        
+        // Stop after 3 seconds
+        setTimeout(() => {
+          if (tempRecorder.state === 'recording') {
+            tempRecorder.stop();
+          }
+        }, 3000);
+        
+        // Wait for recording to finish
+        await recordingPromise;
+        
+        const audioBlob = new Blob(tempAudioChunks, { type: 'audio/webm' });
+        const audioFilename = generateTimestampFilename('webm');
+        
+        showDebug(`Audio captured for combined prediction: ${audioBlob.size} bytes`);
+        
+        tempAudioStream.getTracks().forEach(track => track.stop());
+        
+        const formData = new FormData();
+        formData.append("image", imageBlob, imageFilename);
+        formData.append("audio", audioBlob, audioFilename);
+        
+        try {
+          const response = await fetch("http://127.0.0.1:8000/predict-combined/", {
+            method: "POST",
+            body: formData
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`HTTP ${response.status}: ${errorData.detail || response.statusText}`);
+          }
+          
+          const data = await response.json();
+          displayCombinedPrediction(data);
+          showDebug(`Combined prediction: ${data.person}`);
+          
+          if (data.individual_predictions) {
+            showDebug(`Individual - Face: ${data.individual_predictions.face.person}, Voice: ${data.individual_predictions.voice.person}`);
+          }
+          
+        } catch (fetchError) {
+          console.error("Combined prediction API error:", fetchError);
+          showDebug(`Combined API call failed: ${fetchError.message}`);
+          result.textContent = `Combined Prediction Error`;
+          showStatus('Combined prediction service unavailable', 'error');
+        }
+        
+      } catch (error) {
+        console.error("Combined prediction error:", error);
+        showDebug(`Combined prediction error: ${error.message}`);
+        showStatus('Combined prediction failed', 'error');
+      } finally {
+        combinedBtn.disabled = false;
+      }
+    });
+    
+    // Initialize everything
+    window.addEventListener('load', () => {
+      showDebug("Page loaded, initializing...");
+      initMedia();
+    });
+    
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        showDebug("Page became visible");
+      } else {
+        showDebug("Page became hidden");
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+          recordBtn.disabled = false;
+          recordBtn.classList.remove('recording');
+          stopBtn.disabled = true;
+          stopRecordingTimer();
+        }
+      }
+    });
+    
+    // Handle cleanup
+    window.addEventListener('beforeunload', () => {
+      if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+      }
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+    });
+    
+  </script>
+</body>
+</html>
